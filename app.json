@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "booking-front",
+    "slug": "booking-front",
+    "version": "1.0.0",
+    "entryPoint": "app/index.tsx",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "bookingfront",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourapp.bookingfront"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.yourapp.bookingfront"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "webClientId": "544285951373-c39rqvk4ksomf0he6ngvi27c34ri3bjr.apps.googleusercontent.com",
+          "iosUrlScheme": "com.googleusercontent.apps.544285951373-msnb9h7m2nas78m0r05gpv4ot54n7gmq"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
