@@ -3,6 +3,7 @@
     "name": "booking-front",
     "slug": "booking-front",
     "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
     "entryPoint": "app/index.tsx",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -27,13 +28,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "webClientId": "544285951373-c39rqvk4ksomf0he6ngvi27c34ri3bjr.apps.googleusercontent.com",
-          "iosUrlScheme": "com.googleusercontent.apps.544285951373-msnb9h7m2nas78m0r05gpv4ot54n7gmq"
-        }
-      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-splash-screen",
         {
