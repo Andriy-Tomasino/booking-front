@@ -3,14 +3,14 @@ import { initializeApp as initializeNativeApp, getApps as getNativeApps, getApp 
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB8nZ_CSHuVgIGg5QKg9Cv7IJodhRks5yk",
-  authDomain: "booking-a7656.firebaseapp.com",
-  databaseURL: "https://booking-a7656-default-rtdb.firebaseio.com",
-  projectId: "booking-a7656",
-  storageBucket: "booking-a7656.firebasestorage.app",
-  messagingSenderId: "41093959173",
-  appId: "1:41093959173:web:954f3089caa49fd922166c",
-  measurementId: "G-GDHD5KWP8X"
+    apiKey: "AIzaSyCLuJKDLQ4zPF6xIyAxizQjVA7op5jjwJM",
+      authDomain: "booking-8b9a1.firebaseapp.com",
+      databaseURL: "https://booking-8b9a1-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "booking-8b9a1",
+      storageBucket: "booking-8b9a1.firebasestorage.app",
+      messagingSenderId: "1035878013136",
+      appId: "1:1035878013136:web:5b7bd329dc23e34f61a6d5",
+    measurementId: "G-GDHD5KWP8X"
 };
 
 // Initialize Firebase based on platform

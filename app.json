@@ -31,6 +31,12 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
+        "@react-native-google-signin/google-signin",
+        {
+          "webClientId": "1035878013136-30bcolvmugf82aouiemsdup7cn1p0o8s.apps.googleusercontent.com"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
