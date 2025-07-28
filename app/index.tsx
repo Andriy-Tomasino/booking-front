@@ -1,136 +1,108 @@
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { getAuth as getNativeAuth } from '@react-native-firebase/auth';
-import { app } from '../firebaseConfig';
-
-const API_URL = 'http://localhost:3000';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '../firebaseConfig'; // Проверяем путь
 
 export default function IndexScreen() {
-  console.log('[IndexScreen] Starting render');
+  const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<{ email: string; id: string } | null>(null);
-  const [firebaseAuthAvailable, setFirebaseAuthAvailable] = useState(false);
+  const [error, setError] = useState(null);
   const router = useRouter();
 
-  // Check Firebase auth availability
   useEffect(() => {
-    console.log('[IndexScreen] Checking Firebase module availability');
-    console.log('[IndexScreen] @react-native-firebase/auth available:', !!getNativeAuth);
-    console.log('[IndexScreen] Firebase app initialized:', !!app);
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      (async () => {
-        try {
-          const { getAuth } = await import('firebase/auth');
-          console.log('[IndexScreen] firebase/auth available:', !!getAuth);
-          setFirebaseAuthAvailable(!!getAuth);
-        } catch (err) {
-          console.error('[IndexScreen] Error loading firebase/auth:', err);
-          setError('Failed to load Firebase authentication');
-        }
-      })();
-    } else {
-      console.log('[IndexScreen] Skipping Firebase auth check for non-web or SSR');
-    }
-  }, []);
-
-  console.log('[IndexScreen] Rendering with user:', user, 'isLoading:', isLoading, 'error:', error);
-
-  useEffect(() => {
-    console.log('[IndexScreen] Checking navigation, isLoading:', isLoading);
-    if (!isLoading && user) {
-      console.log('[IndexScreen] User authenticated, redirecting to /app/index');
-      router.replace('/app/index');
-    }
-  }, [user, isLoading, router]);
-
-  const handleGoogleLogin = async () => {
-    console.log('[IndexScreen] Handling Google Login');
-    if (Platform.OS === 'web' && typeof window === 'undefined') {
-      console.log('[IndexScreen] Cannot perform login during SSR');
-      setError('Authentication not available during server rendering');
+    console.log('[IndexScreen] Starting render');
+    if (!auth) {
+      console.error('[IndexScreen] Auth is undefined');
+      setError('Authentication module not initialized');
       return;
     }
-
-    try {
-      setError(null);
-      setIsLoading(true);
-
-      let userCredential;
-      if (Platform.OS === 'web') {
-        if (!firebaseAuthAvailable) {
-          throw new Error('Firebase authentication is not available');
-        }
-        if (!app) {
-          throw new Error('Firebase app is not initialized');
-        }
-        const { getAuth, GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
-        if (!getAuth) {
-          throw new Error('firebase.auth is not available');
-        }
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-        provider.addScope('email');
-        userCredential = await signInWithPopup(auth, provider);
-      } else {
-        const auth = getNativeAuth(app);
-        const provider = new getNativeAuth.GoogleAuthProvider();
-        userCredential = await auth.signInWithPopup(provider); // Заглушка для нативных платформ
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      console.log('[IndexScreen] Rendering with user:', user, 'isLoading:', isLoading, 'error:', error);
+      setUser(user);
+      if (user) {
+        router.replace('/computers');
       }
+    }, (err) => {
+      console.error('[IndexScreen] Auth state error:', err);
+      setError(err.message);
+    });
+    return () => unsubscribe();
+  }, []);
 
-      const idToken = await userCredential.user.getIdToken();
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      console.log('[IndexScreen] Handling Google Login');
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
       console.log('[IndexScreen] Firebase authenticated, idToken:', idToken);
-
-      // Send Firebase ID token to backend
-      console.log('[IndexScreen] Sending idToken to backend:', API_URL);
-      const response = await fetch(`${API_URL}/auth/google`, {
+      const response = await fetch('http://localhost:3000/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
       const data = await response.json();
       console.log('[IndexScreen] Backend response:', data);
-
-      if (response.ok && data.accessToken) {
-        setUser({ email: data.email, id: data._id });
-      } else {
-        throw new Error(data.message || 'Invalid response from backend');
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
       }
-    } catch (error: any) {
-      console.error('[IndexScreen] Google Login Error:', error);
-      setError(error.message || 'Failed to sign in with Google');
+      setUser(result.user);
+      router.replace('/computers');
+    } catch (error) {
+      console.error('[IndexScreen] Google Sign-In error:', error);
+      setError(error.message);
     } finally {
-      console.log('[IndexScreen] Finished Google Login');
       setIsLoading(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
-      <Text style={{ fontSize: 24, color: '#000', fontWeight: 'bold', marginBottom: 20 }}>
-        Welcome
-      </Text>
-      {error && <Text style={{ fontSize: 16, color: 'red', marginBottom: 10 }}>{error}</Text>}
-      <TouchableOpacity
-        style={{
-          backgroundColor: '#4285F4',
-          padding: 10,
-          borderRadius: 5,
-          minWidth: 200,
-          alignItems: 'center',
-          opacity: isLoading || (Platform.OS === 'web' && !firebaseAuthAvailable) ? 0.6 : 1,
-        }}
-        onPress={() => {
-          console.log('[IndexScreen] Button pressed');
-          handleGoogleLogin();
-        }}
-        disabled={isLoading || (Platform.OS === 'web' && !firebaseAuthAvailable)}
-      >
-        <Text style={{ color: '#fff', fontSize: 16 }}>
-          {isLoading ? 'Signing in...' : 'Sign in with Google'}
-        </Text>
+    <View style={styles.container}>
+      {error && <Text style={styles.error}>{error}</Text>}
+      <Text style={styles.prompt}>Please sign in to view computers</Text>
+      <TouchableOpacity style={styles.button} onPress={handleGoogleSignIn}>
+        <Text style={styles.buttonText}>Sign in with Google</Text>
       </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+  },
+  prompt: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: '#4285F4',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+});

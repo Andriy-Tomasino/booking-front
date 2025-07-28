@@ -1,33 +1,22 @@
 import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { LogBox } from 'react-native';
 
 export default function RootLayout() {
-  console.log('[RootLayout] Entering RootLayout render');
-
   useEffect(() => {
-    console.log('[RootLayout] Preparing splash screen');
-    const prepare = async () => {
-      try {
-        console.log('[RootLayout] Loading resources');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log('[RootLayout] Hiding splash screen');
-        await SplashScreen.hideAsync();
-      } catch (e) {
-        console.warn('[RootLayout] Error during preparation:', e);
-      }
-    };
-    prepare();
+    console.log('[RootLayout] Entering RootLayout render');
+    LogBox.ignoreLogs(['Require cycle']);
+    console.log('[RootLayout] Rendering stack navigator');
   }, []);
 
-  console.log('[RootLayout] Rendering stack navigator');
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="auth" />
-      <Stack.Screen name="app/index" />
-      <Stack.Screen name="app/bookings" />
-      <Stack.Screen name="app/computers" />
+    <Stack>
+      <Stack.Screen name="index" options={{ title: 'Home', headerShown: true }} />
+      <Stack.Screen name="auth/login" options={{ title: 'Login', headerShown: true }} />
+      <Stack.Screen name="auth/register" options={{ title: 'Register', headerShown: true }} />
+      <Stack.Screen name="computers" options={{ title: 'Computers', headerShown: true }} />
+      <Stack.Screen name="bookings" options={{ title: 'Bookings', headerShown: true }} />
+      <Stack.Screen name="computer/[id]" options={{ title: 'Computer Details', headerShown: true }} />
     </Stack>
   );
 }

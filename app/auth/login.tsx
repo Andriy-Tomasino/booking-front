@@ -1,94 +1,120 @@
-import { View, Text, Button, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { initializeApp } from '@react-native-firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider } from '@react-native-firebase/auth';
-import { firebaseConfig } from '../../firebaseConfig';
-
-const API_URL = 'http://localhost:3000';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '../../firebaseConfig';
 
 export default function LoginScreen() {
-  console.log('[LoginScreen] Starting render');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<{ email: string; id: string } | null>(null);
+  const [error, setError] = useState(null);
   const router = useRouter();
 
-  // Initialize Firebase
   useEffect(() => {
-    console.log('[LoginScreen] Checking Firebase module availability');
-    console.log('[LoginScreen] @react-native-firebase/app available:', !!initializeApp);
-    console.log('[LoginScreen] @react-native-firebase/auth available:', !!getAuth);
-    if (Platform.OS === 'web') {
-      console.log('[LoginScreen] Initializing Firebase');
-      try {
-        initializeApp(firebaseConfig);
-        console.log('[LoginScreen] Firebase initialized');
-      } catch (error) {
-        console.error('[LoginScreen] Firebase init error:', error);
-        setError('Failed to initialize Firebase');
-      }
+    console.log('[LoginScreen] Setting up auth state listener');
+    if (!auth) {
+      console.error('[LoginScreen] Auth is undefined');
+      setError('Authentication module not initialized');
+      return;
     }
+    const unsubscribe = auth.onAuthStateChanged(
+      (user) => {
+        if (user) {
+          console.log('[LoginScreen] User authenticated, redirecting to /computers');
+          router.replace('/computers');
+        }
+      },
+      (err) => {
+        console.error('[LoginScreen] Auth state error:', err);
+        setError(err.message);
+      }
+    );
+    return () => unsubscribe();
   }, []);
 
-  console.log('[LoginScreen] Rendering with user:', user, 'isLoading:', isLoading, 'error:', error);
-
-  useEffect(() => {
-    console.log('[LoginScreen] Checking navigation, isLoading:', isLoading);
-    if (!isLoading && user) {
-      console.log('[LoginScreen] User authenticated, redirecting to /app/index');
-      router.replace('/app/index');
+  const handleGoogleSignIn = async () => {
+    if (!auth) {
+      setError('Authentication module not initialized');
+      console.error('[LoginScreen] Auth is not initialized');
+      return;
     }
-  }, [user, isLoading, router]);
-
-  const signInWithGoogle = async () => {
-    console.log('[LoginScreen] Handling Google Login');
     try {
-      setError(null);
       setIsLoading(true);
-
-      const auth = getAuth();
+      console.log('[LoginScreen] Handling Google Login');
       const provider = new GoogleAuthProvider();
-      provider.addScope('email');
-      const userCredential = await signInWithPopup(auth, provider);
-      const idToken = await userCredential.user.getIdToken();
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
       console.log('[LoginScreen] Firebase authenticated, idToken:', idToken);
-
-      // Send Firebase ID token to backend
-      console.log('[LoginScreen] Sending idToken to backend:', API_URL);
-      const response = await fetch(`${API_URL}/auth/google`, {
+      const response = await fetch('http://localhost:3000/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
       const data = await response.json();
       console.log('[LoginScreen] Backend response:', data);
-
-      if (response.ok && data.accessToken) {
-        setUser({ email: data.email, id: data._id });
-      } else {
-        throw new Error(data.message || 'Invalid response from backend');
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
       }
-    } catch (error: any) {
-      console.error('[LoginScreen] Google Login Error:', error);
-      setError(error.message || 'Failed to sign in with Google');
+      router.replace('/computers');
+    } catch (error) {
+      console.error('[LoginScreen] Google Sign-In error:', error);
+      setError(error.message);
     } finally {
-      console.log('[LoginScreen] Finished Google Login');
       setIsLoading(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.error}>{error}</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
-      <Text style={{ fontSize: 24, color: '#000', fontWeight: 'bold', marginBottom: 20 }}>
-        Login Screen
-      </Text>
-      {error && <Text style={{ fontSize: 16, color: 'red', marginBottom: 10 }}>{error}</Text>}
-      <Button
-        title={isLoading ? 'Signing in...' : 'Sign in with Google'}
-        onPress={signInWithGoogle}
-        disabled={isLoading}
-      />
+    <View style={styles.container}>
+      <Text style={styles.prompt}>Please sign in to continue</Text>
+      <TouchableOpacity style={styles.button} onPress={handleGoogleSignIn}>
+        <Text style={styles.buttonText}>Sign in with Google</Text>
+      </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+  },
+  prompt: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: '#4285F4',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+});
