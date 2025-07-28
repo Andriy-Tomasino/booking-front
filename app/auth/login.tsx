@@ -17,9 +17,9 @@ export default function LoginScreen() {
       return;
     }
     const unsubscribe = auth.onAuthStateChanged(
-      (user) => {
+      async (user) => {
         if (user) {
-          console.log('[LoginScreen] User authenticated, redirecting to /computers');
+          console.log('[LoginScreen] User authenticated:', user.uid);
           router.replace('/computers');
         }
       },
