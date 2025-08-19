@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1035878013136",
+    "project_id": "booking-8b9a1",
+    "storage_bucket": "booking-8b9a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1035878013136:android:3a111cfa2d03f84b61a6d5",
+        "android_client_info": {
+          "package_name": "com.bookingfront"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1035878013136-30bcolvmugf82aouiemsdup7cn1p0o8s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bookingfront",
+            "certificate_hash": "0bca573c3a155a8c52ee3025ad244d4a9e758383"
+          }
+        },
+        {
+          "client_id": "1035878013136-3abtn3nmg2gqc5rtfqcv5it9dkk2sh4p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAroiJ3C3E1RrTqNRjqeWfhEFLp0cihTDM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1035878013136-3abtn3nmg2gqc5rtfqcv5it9dkk2sh4p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

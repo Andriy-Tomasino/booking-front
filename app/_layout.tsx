@@ -1,22 +1,30 @@
+import { PaperProvider } from 'react-native-paper';
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
-import { LogBox } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'; // assume installed for data fetching
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-export default function RootLayout() {
-  useEffect(() => {
-    console.log('[RootLayout] Entering RootLayout render');
-    LogBox.ignoreLogs(['Require cycle']);
-    console.log('[RootLayout] Rendering stack navigator');
-  }, []);
+const queryClient = new QueryClient();
 
+export default function Layout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: 'Home', headerShown: true }} />
-      <Stack.Screen name="auth/login" options={{ title: 'Login', headerShown: true }} />
-      <Stack.Screen name="auth/register" options={{ title: 'Register', headerShown: true }} />
-      <Stack.Screen name="computers" options={{ title: 'Computers', headerShown: true }} />
-      <Stack.Screen name="bookings" options={{ title: 'Bookings', headerShown: true }} />
-      <Stack.Screen name="computer/[id]" options={{ title: 'Computer Details', headerShown: true }} />
-    </Stack>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <PaperProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="auth/login" />
+            <Stack.Screen name="auth/register" />
+            <Stack.Screen name="computers" />
+            <Stack.Screen name="computer/[id]" />
+            <Stack.Screen name="bookings" /> {/* for my bookings, but integrated in computers */}
+            <Stack.Screen name="admin" />
+            <Stack.Screen name="admin/computers" />
+            <Stack.Screen name="admin/bookings" />
+            <Stack.Screen name="admin/new-users" />
+            <Stack.Screen name="admin/all-users" />
+          </Stack>
+        </PaperProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }

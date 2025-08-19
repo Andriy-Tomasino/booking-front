@@ -1,120 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+// app/auth/login.tsx
+import { useState } from "react";
+import { View, StyleSheet, Text } from "react-native";
+import { Button, HelperText } from "react-native-paper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useMutation } from "@tanstack/react-query";
+import { router } from "expo-router";
 
-export default function LoginScreen() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const router = useRouter();
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../../firebase";
+import api from "../../utils/api";
 
-  useEffect(() => {
-    console.log('[LoginScreen] Setting up auth state listener');
-    if (!auth) {
-      console.error('[LoginScreen] Auth is undefined');
-      setError('Authentication module not initialized');
-      return;
-    }
-    const unsubscribe = auth.onAuthStateChanged(
-      async (user) => {
-        if (user) {
-          console.log('[LoginScreen] User authenticated:', user.uid);
-          router.replace('/computers');
-        }
-      },
-      (err) => {
-        console.error('[LoginScreen] Auth state error:', err);
-        setError(err.message);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
+export default function Login() {
+  const [error, setError] = useState("");
 
-  const handleGoogleSignIn = async () => {
-    if (!auth) {
-      setError('Authentication module not initialized');
-      console.error('[LoginScreen] Auth is not initialized');
-      return;
-    }
+  // 🔹 Мутация для логина на backend
+  const loginMutation = useMutation({
+    mutationFn: async (idToken: string) => {
+      console.log("[Login] Sending login request with idToken:", idToken);
+      return api.post("/auth/login", { idToken });
+    },
+    onSuccess: async (res) => {
+      console.log("[Login] Login successful:", res.data);
+
+      // сохраняем токен и юзера
+      await AsyncStorage.setItem("token", res.data.jwtToken);
+      await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
+
+      router.replace("/computers");
+    },
+    onError: (err: any) => {
+      console.error("[Login] Login error:", err);
+      setError(err.response?.data?.message || "Помилка входу");
+    },
+  });
+
+  // 🔹 Google login (popup)
+  const handleLoginPopup = async () => {
+    setError("");
     try {
-      setIsLoading(true);
-      console.log('[LoginScreen] Handling Google Login');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-      console.log('[LoginScreen] Firebase authenticated, idToken:', idToken);
-      const response = await fetch('http://localhost:3000/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-      const data = await response.json();
-      console.log('[LoginScreen] Backend response:', data);
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-      router.replace('/computers');
-    } catch (error) {
-      console.error('[LoginScreen] Google Sign-In error:', error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
+
+      const user = result.user;
+      const firebaseToken = await user.getIdToken(true);
+      console.log("[Login] Firebase popup successful:", firebaseToken);
+
+      loginMutation.mutate(firebaseToken);
+    } catch (err) {
+      console.error("[Login] Popup error:", err);
+      setError("Помилка входу через Firebase");
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.error}>{error}</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <Text style={styles.prompt}>Please sign in to continue</Text>
-      <TouchableOpacity style={styles.button} onPress={handleGoogleSignIn}>
-        <Text style={styles.buttonText}>Sign in with Google</Text>
-      </TouchableOpacity>
+      <Text style={styles.title}>Увійти в систему</Text>
+
+      <Button mode="contained" onPress={handleLoginPopup} style={styles.button}>
+        Увійти через Google
+      </Button>
+
+      <HelperText type="error" visible={!!error}>
+        {error}
+      </HelperText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-  },
-  prompt: {
-    fontSize: 16,
+  container: { flex: 1, justifyContent: "center", padding: 20 },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   button: {
-    backgroundColor: '#4285F4',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  error: {
-    color: 'red',
-    marginBottom: 10,
-    textAlign: 'center',
+    marginBottom: 12,
   },
 });
