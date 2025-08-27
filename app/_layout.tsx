@@ -1,6 +1,6 @@
 import { PaperProvider } from 'react-native-paper';
 import { Stack } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'; // assume installed for data fetching
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const queryClient = new QueryClient();
@@ -15,8 +15,9 @@ export default function Layout() {
             <Stack.Screen name="auth/login" />
             <Stack.Screen name="auth/register" />
             <Stack.Screen name="computers" />
-            <Stack.Screen name="computer/[id]" />
-            <Stack.Screen name="bookings" /> {/* for my bookings, but integrated in computers */}
+            <Stack.Screen name="computer/[computerId]" />
+            <Stack.Screen name="bookings" />
+            <Stack.Screen name="bookings/[userId]" /> {/* Add dynamic route */}
             <Stack.Screen name="admin" />
             <Stack.Screen name="admin/computers" />
             <Stack.Screen name="admin/bookings" />

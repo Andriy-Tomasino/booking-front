@@ -10,7 +10,7 @@ export default function AdminBookings() {
 
   const { data: bookings = [] } = useQuery({
     queryKey: ['allBookings'],
-    queryFn: async () => api.get('/bookings/all').then(res => res.data),
+    queryFn: async () => api.get('/bookings').then(res => res.data), // Исправлено: '/bookings' вместо '/bookings/all'
   });
 
   const cancelMutation = useMutation({

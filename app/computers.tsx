@@ -18,11 +18,20 @@ export default function Computers() {
   const [endTime, setEndTime] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // load user from AsyncStorage
   useEffect(() => {
     const loadUser = async () => {
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) setCurrentUser(JSON.parse(storedUser));
+      try {
+        const storedUser = await AsyncStorage.getItem('user');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          console.log('[Computers] Loaded user:', JSON.stringify(user, null, 2));
+          setCurrentUser(user);
+        } else {
+          console.warn('[Computers] No user found in AsyncStorage');
+        }
+      } catch (err) {
+        console.error('[Computers] Error loading user:', err);
+      }
     };
     loadUser();
   }, []);
@@ -33,7 +42,7 @@ export default function Computers() {
         const res = await api.get('/computers');
         setComputers(res.data || []);
       } catch (err) {
-        console.error('[Computers] fetch error:', err);
+        console.error('[Computers] Fetch computers error:', err);
         Alert.alert('Error', 'Failed to load computer list');
       }
     };
@@ -42,8 +51,14 @@ export default function Computers() {
 
   const bookingMutation = useMutation({
     mutationFn: async (dto: any) => {
-      console.log('[Computers] Sending booking request:', dto);
-      const res = await api.post('/bookings', dto);
+      const token = await AsyncStorage.getItem('token');
+      if (!token) throw new Error('No token found');  // ИСПРАВЛЕНО: Добавил проверку токена
+      console.log('[Computers] JWT Token:', token);
+      console.log('[Computers] Sending booking request:', JSON.stringify(dto, null, 2));
+      const res = await api.post('/bookings', dto, {  // ИСПРАВЛЕНО: Добавил headers, если api не имеет по умолчанию
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('[Computers] Booking response:', JSON.stringify(res.data, null, 2));
       return res.data;
     },
     onSuccess: () => {
@@ -55,7 +70,7 @@ export default function Computers() {
       Alert.alert('Success', 'Reservation created');
     },
     onError: (err: any) => {
-      console.error('[Computers] Booking error:', err);
+      console.error('[Computers] Booking error:', JSON.stringify(err.response?.data, null, 2));
       const message = err.response?.data?.message || 'Failed to book';
       Alert.alert('Error', message);
     },
@@ -73,8 +88,8 @@ export default function Computers() {
     }
 
     const [dd, mm, yyyy] = date.split('-');
-    const startISO = `${yyyy}-${mm}-${dd}T${startTime}:00`;
-    const endISO = `${yyyy}-${mm}-${dd}T${endTime}:00`;
+    const startISO = `${yyyy}-${mm}-${dd}T${startTime}:00.000Z`;
+    const endISO = `${yyyy}-${mm}-${dd}T${endTime}:00.000Z`;
 
     const startDate = new Date(startISO);
     const endDate = new Date(endISO);
@@ -84,20 +99,16 @@ export default function Computers() {
       return;
     }
 
-    console.log('[Computers] Booking computer:', selectedComputer);
+    console.log('[Computers] Booking computer:', JSON.stringify(selectedComputer, null, 2));
 
-    // We pass a string _id
     bookingMutation.mutate({
-      computerId: selectedComputer._id, // <- ObjectId from BD
-      userId: currentUser._id,
+      computerId: selectedComputer._id,
       startTime: startDate.toISOString(),
       endTime: endDate.toISOString(),
       username: currentUser.nickname || 'Unknown',
       computerName: selectedComputer.name || 'Unknown',
     });
   };
-
-
 
   const locations = ['all', ...new Set(computers.map(c => c.location).filter(Boolean))];
   const filteredComputers = selectedLocation === 'all'
@@ -117,7 +128,7 @@ export default function Computers() {
               setSelectedComputer(item);
               setBookModalVisible(true);
             }}
-            disabled={!item.id || !item.isAvailable}
+            disabled={!item._id || item.isAvailable === false}  // ИСПРАВЛЕНО: Изменил на item._id (предполагая id -> _id), и disabled только если явно false
           >
             Book
           </Button>
@@ -151,13 +162,14 @@ export default function Computers() {
         <FlatList
           data={filteredComputers}
           renderItem={renderComputer}
-          keyExtractor={item => item.id?.toString() || Math.random().toString()}
+          keyExtractor={item => item._id.toString()}  // ИСПРАВЛЕНО: Убрал random, используем _id
           ListEmptyComponent={<Text>No computers available</Text>}
         />
         <Button
           mode="contained"
-          onPress={() => router.push('/bookings')}
+          onPress={() => router.push(`/bookings/${currentUser?.uid || ''}`)}
           style={styles.bottomButton}
+          disabled={!currentUser?.uid}
         >
           All bookings
         </Button>
@@ -183,7 +195,7 @@ export default function Computers() {
               value={date}
               style={styles.input}
               keyboardType="numeric"
-              placeholder="Year"
+              placeholder="DD-MM-YYYY"
             />
             <MaskedTextInput
               mask="99:99"
@@ -191,7 +203,7 @@ export default function Computers() {
               value={startTime}
               style={styles.input}
               keyboardType="numeric"
-              placeholder="Time"
+              placeholder="HH:MM"
             />
             <MaskedTextInput
               mask="99:99"
@@ -199,12 +211,12 @@ export default function Computers() {
               value={endTime}
               style={styles.input}
               keyboardType="numeric"
-              placeholder="Time"
+              placeholder="HH:MM"
             />
             <Button
               mode="contained"
               onPress={handleBook}
-              loading={bookingMutation.isLoading}
+              loading={bookingMutation.isPending}  // ИСПРАВЛЕНО: isLoading -> isPending для tanstack
             >
               Book
             </Button>

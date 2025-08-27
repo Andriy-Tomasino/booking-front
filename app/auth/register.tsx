@@ -1,115 +1,114 @@
-import { useState, useRef } from 'react';
-import { View, Alert, StyleSheet, Platform } from 'react-native';
+import { useState } from 'react';
+import { View, Alert, StyleSheet } from 'react-native';
 import { TextInput, Button, HelperText } from 'react-native-paper';
-import {
-    getAuth,
-    signInWithPhoneNumber,
-    PhoneAuthProvider,
-    signInWithCredential,
-    RecaptchaVerifier,
-} from 'firebase/auth';
-import app from '../../firebaseConfig';
-import api from '../../utils/api';
 import { useMutation } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { MaskedTextInput } from 'react-native-mask-text';
+import api from '../../utils/api';
 
-const auth = getAuth(app);
+// Очистка телефона и форматирование
+function cleanPhone(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+
+  if (digits.startsWith('380')) digits = digits.slice(3);
+  if (digits.startsWith('80')) digits = digits.slice(2);
+  if (digits.length === 9) digits = '0' + digits;
+
+  if (digits.length !== 10) {
+    throw new Error('Номер телефона должен содержать 9 цифр после очистки (например, 0991234567)');
+  }
+
+  return digits;
+}
 
 export default function Register() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [confirmation, setConfirmation] = useState(null);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const recaptchaVerifier = useRef(null);
 
   const registerMutation = useMutation({
-    mutationFn: async ({ idToken, firstName, lastName, nickname }) =>
-      api.post('/registrations', { idToken, firstName, lastName, nickname }),
+    mutationFn: async ({ firstName, lastName, nickname, phoneNumber, password }: any) => {
+      return api.post('/registrations', { firstName, lastName, nickname, phoneNumber, password });
+    },
     onSuccess: () => {
       Alert.alert('Успіх', 'Запит на реєстрацію надіслано. Чекайте схвалення адміністратора.');
-      setConfirmation(null);
-      setCode('');
+      router.push('/auth/login');
     },
-    onError: (err) => setError(err.response?.data?.message || 'Помилка реєстрації'),
+    onError: (err: any) => {
+      console.log('[Register] Error response:', err.response?.data);
+      setError(err.response?.data?.message || 'Помилка реєстрації');
+    },
   });
 
-  const sendCode = async () => {
-    try {
-      setError('');
-      if (!firstName || !lastName || !nickname || phone.length !== 9) {
-        setError('Заповніть всі поля');
-        return;
-      }
-      const fullPhone = '+380' + phone;
+  const handleRegister = () => {
+    setError('');
 
-      let appVerifier;
-      if (Platform.OS === 'web') {
-        if (!recaptchaVerifier.current) {
-          recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-        }
-        appVerifier = recaptchaVerifier.current;
-      } else {
-        appVerifier = recaptchaVerifier.current;
-      }
-
-      const conf = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
-      setConfirmation(conf);
-    } catch (e) {
-      setError(e.message || 'Помилка надсилання коду');
-      if (Platform.OS === 'web' && recaptchaVerifier.current) {
-        recaptchaVerifier.current.clear();
-      }
+    if (!firstName.trim() || !lastName.trim() || !nickname.trim() || !phone.trim() || !password.trim()) {
+      setError('Заповніть всі поля');
+      return;
     }
-  };
 
-  const verifyCode = async () => {
+    let cleanedPhone: string;
     try {
-      setError('');
-      if (!confirmation) {
-        setError('Спочатку надішліть код');
-        return;
-      }
-      const credential = PhoneAuthProvider.credential(confirmation.verificationId, code);
-      const result = await signInWithCredential(auth, credential);
-      const idToken = await result.user.getIdToken();
-      registerMutation.mutate({ idToken, firstName, lastName, nickname });
-    } catch (e) {
-      setError('Неправильний код або помилка верифікації');
-    } finally {
-      if (Platform.OS === 'web' && recaptchaVerifier.current) {
-        recaptchaVerifier.current.clear();
-      }
+      cleanedPhone = cleanPhone(phone);
+    } catch (err: any) {
+      setError(err.message);
+      return;
     }
+
+    const phoneNumber = '+380' + cleanedPhone.slice(1); // Убираем ведущий 0, добавляем +380
+
+    console.log('[Register] Sending payload:', { firstName, lastName, nickname, phoneNumber, password });
+
+    registerMutation.mutate({ firstName, lastName, nickname, phoneNumber, password });
   };
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'web' && <div id="recaptcha-container" />}
-      <TextInput label="Ім'я" value={firstName} onChangeText={setFirstName} disabled={!!confirmation} />
-      <TextInput label="Прізвище" value={lastName} onChangeText={setLastName} disabled={!!confirmation} />
-      <TextInput label="Нікнейм" value={nickname} onChangeText={setNickname} disabled={!!confirmation} />
-      <TextInput
-        label="Номер телефону (9 цифр)"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="numeric"
-        maxLength={9}
-        disabled={!!confirmation}
-      />
-      {!confirmation ? (
-        <Button mode="contained" onPress={sendCode} style={styles.button}>
-          Надіслати код
+      <View style={styles.topBar}>
+        <Button mode="outlined" onPress={() => router.push('/auth/login')}>
+          Login
         </Button>
-      ) : (
-        <>
-          <TextInput label="Код підтвердження" value={code} onChangeText={setCode} keyboardType="numeric" />
-          <Button mode="contained" onPress={verifyCode} style={styles.button} loading={registerMutation.isPending}>
-            Регістрація
-          </Button>
-        </>
-      )}
+      </View>
+
+      <TextInput label="Ім'я" value={firstName} onChangeText={setFirstName} style={styles.input} />
+      <TextInput label="Прізвище" value={lastName} onChangeText={setLastName} style={styles.input} />
+      <TextInput label="Нікнейм" value={nickname} onChangeText={setNickname} style={styles.input} />
+
+      <TextInput
+        label="Номер телефону"
+        render={(props) => (
+          <MaskedTextInput
+            {...props}
+            mask="+380 (99) 999-99-99"
+            onChangeText={(text, rawText) => setPhone(rawText)}
+            keyboardType="numeric"
+          />
+        )}
+        value={phone}
+        style={styles.input}
+      />
+
+      <TextInput
+        label="Пароль"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        style={styles.input}
+      />
+
+      <Button
+        mode="contained"
+        onPress={handleRegister}
+        style={styles.button}
+        loading={registerMutation.isLoading}
+      >
+        Регістрація
+      </Button>
+
       <HelperText type="error" visible={!!error}>
         {error}
       </HelperText>
@@ -119,6 +118,7 @@ export default function Register() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  input: { marginBottom: 12 },
   button: { marginTop: 10 },
 });
-
