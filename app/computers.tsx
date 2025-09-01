@@ -89,18 +89,31 @@ export default function Computers() {
     const token = await AsyncStorage.getItem("token");
     if (!token) return;
 
-    if (isMine) {
+    // Нормализация: добавляем id, если его нет
+    const normalizedBookings = item.bookings?.map((b: any) => ({
+      ...b,
+      id: b._id,
+    })) || [];
+
+    if (isMine && booking) {
       try {
-        await api.delete(`/bookings/${booking.id}`, {
+        await api.delete(`/bookings/${booking._id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         setComputers((prev) =>
           prev.map((c) =>
             c.id === item.id
-              ? { ...c, bookings: c.bookings.filter((b: any) => b.id !== booking.id) }
+              ? {
+                  ...c,
+                  bookings: normalizedBookings.filter(
+                    (b: any) => b._id !== booking._id
+                  ),
+                }
               : c
           )
         );
+
         Alert.alert("Успіх", "Бронювання скасовано");
       } catch {
         Alert.alert("Помилка", "Не вдалося видалити бронювання");
@@ -122,19 +135,22 @@ export default function Computers() {
             startTime: startDate.toISOString(),
             endTime: endDate.toISOString(),
             userId: currentUser?.uid,
-            username:
-              currentUser?.username || currentUser?.name || "Користувач",
+            username: currentUser?.username || currentUser?.name || "Користувач",
             computerName: item.name,
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        const newBooking = res.data;
+        const newBooking = { ...res.data, id: res.data._id };
+
         setComputers((prev) =>
           prev.map((c) =>
-            c.id === item.id ? { ...c, bookings: [...c.bookings, newBooking] } : c
+            c.id === item.id
+              ? { ...c, bookings: [...normalizedBookings, newBooking] }
+              : c
           )
         );
+
         Alert.alert("Успіх", "Бронювання створено");
       } catch (err: any) {
         Alert.alert(
@@ -144,6 +160,7 @@ export default function Computers() {
       }
     }
   };
+
 
   const renderComputer = ({ item }: any) => {
     const isExpanded = expanded === item.id;
@@ -448,7 +465,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tile: {
-    width: "30%",
+    width: '30%',
+    height: '30%',
     aspectRatio: 1,
     borderRadius: 15,
     borderWidth: 1,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, FlatList, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
-import { Card, Menu, Button, Provider as PaperProvider } from 'react-native-paper';
+import { Card, Menu, Provider as PaperProvider } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../utils/api';
 import { router } from 'expo-router';
@@ -10,13 +10,21 @@ export default function AdminBookings() {
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [locationMenuVisible, setLocationMenuVisible] = useState(false);
 
+  // Получаем все бронирования
   const { data: bookings = [] } = useQuery({
     queryKey: ['allBookings'],
-    queryFn: async () => api.get('/bookings').then(res => res.data),
+    queryFn: async () => {
+      const res = await api.get('/bookings');
+      return res.data;
+    },
   });
 
+  // Мутация для отмены бронирования
   const cancelMutation = useMutation({
-    mutationFn: async (id: string) => api.delete(`/bookings/${id}`),
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/bookings/${id}`);
+      return res.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['allBookings']);
       Alert.alert('Успіх', 'Бронювання скасовано');
@@ -51,7 +59,10 @@ export default function AdminBookings() {
           <Text style={styles.location}>📍 {item.computer?.location || 'Невідома локація'}</Text>
           <Text style={styles.time}>{formatBookingTime(item.startTime, item.endTime)}</Text>
         </View>
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => cancelMutation.mutate(item._id)}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={() => cancelMutation.mutate(item._id)}
+        >
           <Text style={styles.cancelText}>Скасувати</Text>
         </TouchableOpacity>
       </View>
@@ -113,7 +124,7 @@ export default function AdminBookings() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#F1F3F6' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#130153', textAlign: 'center', marginBottom: 16, marginTop: '3%'},
+  title: { fontSize: 22, fontWeight: 'bold', color: '#130153', textAlign: 'center', marginBottom: 16, marginTop: '3%' },
   locationBox: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -131,8 +142,8 @@ const styles = StyleSheet.create({
   cardContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pcName: { fontSize: 18, fontWeight: '600', color: '#130153', marginBottom: 6 },
   username: { fontSize: 15, fontWeight: '500', color: '#333', marginBottom: 4 },
-  location: { fontSize: 15, color: '#555', marginBottom: 8 },
-  time: { fontSize: 15, color: 'black', fontWeight: '500' },
+  location: { fontSize: 15, color: '#2F7EF5', marginBottom: 8 },
+  time: { fontSize: 15, color: '#130153', fontWeight: '500' },
   cancelBtn: { backgroundColor: '#d9534f', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
   cancelText: { color: 'white', fontWeight: '600', fontSize: 15 },
   backBtn: { marginTop: 12, alignSelf: 'center', backgroundColor: '#2F7EF5', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
