@@ -1,0 +1,8 @@
+.background {
+  background-image: url("../images/50c4b4c09395f6b9adcd80e484637dee6f36afcc.png");
+  background-size: cover;
+  background-position: center;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}

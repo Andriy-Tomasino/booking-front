@@ -20,7 +20,7 @@ import React from 'react';
      return (
        <TouchableOpacity
          style={styles.container}
-         onPress={() => router.push(`/computer/${computer._id}`)}
+         onPress={() => router.push(`/computer/${computer.id}`)}
        >
          <Text style={styles.name}>{computer.name}</Text>
          <View style={styles.info}>

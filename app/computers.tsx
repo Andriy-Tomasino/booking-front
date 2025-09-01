@@ -1,37 +1,36 @@
-import { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, Alert, Text } from 'react-native';
-import { Card, Button, Portal, Modal, TextInput, List, Chip, Provider as PaperProvider } from 'react-native-paper';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../utils/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import { MaskedTextInput } from 'react-native-mask-text';
+import { useState, useEffect } from "react";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Alert,
+  Text,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import {
+  MD3LightTheme,
+  Card,
+  Provider as PaperProvider,
+  Menu,
+} from "react-native-paper";
+import api from "../utils/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 
 export default function Computers() {
-  const queryClient = useQueryClient();
-  const [computers, setComputers] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('all');
-  const [bookModalVisible, setBookModalVisible] = useState(false);
-  const [selectedComputer, setSelectedComputer] = useState<any>(null);
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [computers, setComputers] = useState<any[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState("all");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [locationMenuVisible, setLocationMenuVisible] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem('user');
-        if (storedUser) {
-          const user = JSON.parse(storedUser);
-          console.log('[Computers] Loaded user:', JSON.stringify(user, null, 2));
-          setCurrentUser(user);
-        } else {
-          console.warn('[Computers] No user found in AsyncStorage');
-        }
-      } catch (err) {
-        console.error('[Computers] Error loading user:', err);
-      }
+      const storedUser = await AsyncStorage.getItem("user");
+      if (storedUser) setCurrentUser(JSON.parse(storedUser));
     };
     loadUser();
   }, []);
@@ -39,207 +38,422 @@ export default function Computers() {
   useEffect(() => {
     const fetchComputers = async () => {
       try {
-        const res = await api.get('/computers');
-        setComputers(res.data || []);
-      } catch (err) {
-        console.error('[Computers] Fetch computers error:', err);
-        Alert.alert('Error', 'Failed to load computer list');
+        const res = await api.get("/computers");
+        const normalized = (res.data || []).map((c: any) => ({
+          ...c,
+          id: c.id || c._id?.toString(), // нормализация
+        }));
+        setComputers(normalized);
+      } catch {
+        Alert.alert("Помилка", "Не вдалося завантажити комп’ютери");
       }
     };
     fetchComputers();
   }, []);
 
-  const bookingMutation = useMutation({
-    mutationFn: async (dto: any) => {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) throw new Error('No token found');  // ИСПРАВЛЕНО: Добавил проверку токена
-      console.log('[Computers] JWT Token:', token);
-      console.log('[Computers] Sending booking request:', JSON.stringify(dto, null, 2));
-      const res = await api.post('/bookings', dto, {  // ИСПРАВЛЕНО: Добавил headers, если api не имеет по умолчанию
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log('[Computers] Booking response:', JSON.stringify(res.data, null, 2));
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['computers']);
-      setBookModalVisible(false);
-      setDate('');
-      setStartTime('');
-      setEndTime('');
-      Alert.alert('Success', 'Reservation created');
-    },
-    onError: (err: any) => {
-      console.error('[Computers] Booking error:', JSON.stringify(err.response?.data, null, 2));
-      const message = err.response?.data?.message || 'Failed to book';
-      Alert.alert('Error', message);
-    },
-  });
+  const locations = [
+    "all",
+    ...new Set(computers.map((c) => c.location).filter(Boolean)),
+  ];
+  const filteredComputers =
+    selectedLocation === "all"
+      ? computers
+      : computers.filter((c) => c.location === selectedLocation);
 
-  const handleBook = () => {
-    if (!selectedComputer || !currentUser) {
-      Alert.alert('Error', 'Incorrect user or computer data');
-      return;
-    }
-
-    if (!date || !startTime || !endTime) {
-      Alert.alert('Error', 'Fill in the date and time of your reservation');
-      return;
-    }
-
-    const [dd, mm, yyyy] = date.split('-');
-    const startISO = `${yyyy}-${mm}-${dd}T${startTime}:00.000Z`;
-    const endISO = `${yyyy}-${mm}-${dd}T${endTime}:00.000Z`;
-
-    const startDate = new Date(startISO);
-    const endDate = new Date(endISO);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate >= endDate) {
-      Alert.alert('Error', 'Incorrect date or time');
-      return;
-    }
-
-    console.log('[Computers] Booking computer:', JSON.stringify(selectedComputer, null, 2));
-
-    bookingMutation.mutate({
-      computerId: selectedComputer._id,
-      startTime: startDate.toISOString(),
-      endTime: endDate.toISOString(),
-      username: currentUser.nickname || 'Unknown',
-      computerName: selectedComputer.name || 'Unknown',
-    });
+  const formatDate = (date: Date) => {
+    const monthsUk = [
+      "січня",
+      "лютого",
+      "березня",
+      "квітня",
+      "травня",
+      "червня",
+      "липня",
+      "серпня",
+      "вересня",
+      "жовтня",
+      "листопада",
+      "грудня",
+    ];
+    return `${date.getDate()} ${monthsUk[date.getMonth()]}`;
   };
 
-  const locations = ['all', ...new Set(computers.map(c => c.location).filter(Boolean))];
-  const filteredComputers = selectedLocation === 'all'
-    ? computers
-    : computers.filter(c => c.location === selectedLocation);
+  const hours = Array.from({ length: 9 }, (_, i) => 9 + i);
+
+  const handleBooking = async (
+    item: any,
+    h: number,
+    booking: any,
+    isMine: boolean
+  ) => {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) return;
+
+    if (isMine) {
+      try {
+        await api.delete(`/bookings/${booking.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setComputers((prev) =>
+          prev.map((c) =>
+            c.id === item.id
+              ? { ...c, bookings: c.bookings.filter((b: any) => b.id !== booking.id) }
+              : c
+          )
+        );
+        Alert.alert("Успіх", "Бронювання скасовано");
+      } catch {
+        Alert.alert("Помилка", "Не вдалося видалити бронювання");
+      }
+      return;
+    }
+
+    if (!booking) {
+      try {
+        const startDate = new Date(currentDate);
+        startDate.setHours(h, 0, 0, 0);
+        const endDate = new Date(startDate);
+        endDate.setHours(startDate.getHours() + 1);
+
+        const res = await api.post(
+          "/bookings",
+          {
+            computerId: item.id,
+            startTime: startDate.toISOString(),
+            endTime: endDate.toISOString(),
+            userId: currentUser?.uid,
+            username:
+              currentUser?.username || currentUser?.name || "Користувач",
+            computerName: item.name,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const newBooking = res.data;
+        setComputers((prev) =>
+          prev.map((c) =>
+            c.id === item.id ? { ...c, bookings: [...c.bookings, newBooking] } : c
+          )
+        );
+        Alert.alert("Успіх", "Бронювання створено");
+      } catch (err: any) {
+        Alert.alert(
+          "Помилка",
+          err.response?.data?.message || "Не вдалося забронювати"
+        );
+      }
+    }
+  };
 
   const renderComputer = ({ item }: any) => {
-    const color = item.isAvailable ? 'green' : 'red';
+    const isExpanded = expanded === item.id;
+    const todaysBookings = (item.bookings || []).filter((b: any) => {
+      const start = new Date(b.startTime);
+      return start.toDateString() === currentDate.toDateString();
+    });
+
+    const busyCount = todaysBookings.length;
+    const freeCount = hours.length - busyCount;
+
     return (
       <Card style={styles.card}>
-        <Card.Title title={item.name || 'Without name'} subtitle={item.location || 'Without location'} />
-        <View style={[styles.status, { backgroundColor: color }]} />
-        <View style={styles.buttons}>
-          <Button
-            mode="contained"
-            onPress={() => {
-              setSelectedComputer(item);
-              setBookModalVisible(true);
-            }}
-            disabled={!item._id || item.isAvailable === false}  // ИСПРАВЛЕНО: Изменил на item._id (предполагая id -> _id), и disabled только если явно false
-          >
-            Book
-          </Button>
-          <Button
-            mode="contained"
-            onPress={() => router.push(`/computer/${item._id}`)}
-          >
-            Booking by this PC
-          </Button>
-        </View>
+        <TouchableOpacity
+          onPress={() => setExpanded(isExpanded ? null : item.id)}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.pcName}>{item.name}</Text>
+            <Text style={styles.location}>{item.location}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.statusText}>Зайнято: {busyCount} г</Text>
+            <Text style={styles.statusText}>Вільно: {freeCount} г</Text>
+          </View>
+
+          {!isExpanded ? (
+            <View style={styles.scale}>
+              {hours.map((h) => {
+                const booking = item.bookings?.find(
+                  (b: any) => new Date(b.startTime).getHours() === h
+                );
+                const isMine = booking?.userId === currentUser?.uid;
+                return (
+                  <View
+                    key={h}
+                    style={[
+                      styles.scaleBlock,
+                      isMine
+                        ? { backgroundColor: "#2F7EF5" }
+                        : booking
+                        ? { backgroundColor: "#130153" }
+                        : { backgroundColor: "#F1F3F6" },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.tiles}>
+              {hours.map((h) => {
+                const booking = item.bookings?.find(
+                  (b: any) => new Date(b.startTime).getHours() === h
+                );
+                const isMine = booking?.userId === currentUser?.uid;
+
+                return (
+                  <TouchableOpacity
+                    key={h}
+                    disabled={booking && !isMine}
+                    onPress={() => handleBooking(item, h, booking, isMine)}
+                    style={[
+                      styles.tile,
+                      isMine
+                        ? { backgroundColor: "#2F7EF5" }
+                        : booking
+                        ? { backgroundColor: "#130153" }
+                        : { backgroundColor: "#F1F3F6" },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: booking ? "white" : "#130153",
+                        fontWeight: "500",
+                      }}
+                    >{`${h}:00`}</Text>
+                    {booking && !isMine && booking.username && (
+                      <Text
+                        style={{ color: "white", fontSize: 12, marginTop: 2 }}
+                      >
+                        {booking.username}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </TouchableOpacity>
       </Card>
     );
   };
 
   return (
-    <PaperProvider>
+    <PaperProvider
+      theme={{
+        ...MD3LightTheme,
+        colors: { ...MD3LightTheme.colors, surface: "white", onSurface: "black" },
+      }}
+    >
       <View style={styles.container}>
+        {/* Топ-бар с меню */}
         <View style={styles.topBar}>
-          <Button mode="outlined" onPress={() => router.push('/auth/login')}>
-            Sign in
-          </Button>
-          <List.Accordion title="Sort for rooms" style={styles.accordion}>
-            {locations.map(loc => (
-              <Chip key={loc} selected={selectedLocation === loc} onPress={() => setSelectedLocation(loc)}>
-                {loc}
-              </Chip>
+          <Menu
+            visible={locationMenuVisible}
+            onDismiss={() => setLocationMenuVisible(false)}
+            contentStyle={styles.menuContent}
+            anchor={
+              <TouchableOpacity
+                style={styles.locationBox}
+                onPress={() => setLocationMenuVisible(true)}
+              >
+                <Text style={styles.locationBoxText}>
+                  {selectedLocation === "all"
+                    ? "Всі кімнати"
+                    : selectedLocation}
+                </Text>
+              </TouchableOpacity>
+            }
+          >
+            {locations.map((loc, idx) => (
+              <View key={loc}>
+                <Menu.Item
+                  onPress={() => {
+                    setSelectedLocation(loc);
+                    setLocationMenuVisible(false);
+                  }}
+                  title={loc}
+                  titleStyle={styles.menuItemText}
+                />
+                {idx < locations.length - 1 && (
+                  <View style={styles.menuDivider} />
+                )}
+              </View>
             ))}
-          </List.Accordion>
+          </Menu>
+
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            contentStyle={styles.menuContent}
+            anchor={
+              <View style={styles.gearWrapper}>
+                <TouchableOpacity onPress={() => setMenuVisible(true)}>
+                  <Image
+                    source={require("./images/menu.png")}
+                    style={{ width: 28, height: 28, resizeMode: "contain" }}
+                  />
+                </TouchableOpacity>
+              </View>
+            }
+          >
+            {currentUser?.role === "admin" && (
+              <>
+                <Menu.Item
+                  onPress={() => router.push("/admin")}
+                  title="Адміністрування"
+                  titleStyle={styles.menuItemText}
+                />
+                <View style={styles.menuDivider} />
+              </>
+            )}
+            <Menu.Item
+              onPress={() => router.push(`/bookings/${currentUser?.uid || ""}`)}
+              title="Мої бронювання"
+              titleStyle={styles.menuItemText}
+            />
+            <View style={styles.menuDivider} />
+            <Menu.Item
+              onPress={() => router.push("/auth/login")}
+              title="Вийти"
+              titleStyle={styles.menuItemText}
+            />
+          </Menu>
         </View>
-        <Text>Current user: {currentUser?.nickname || 'Didnt enter'}</Text>
+
+        {/* Дата */}
+        <View style={styles.dateRow}>
+          <TouchableOpacity
+            onPress={() => {
+              const prev = new Date(currentDate);
+              prev.setDate(prev.getDate() - 1);
+              if (prev >= new Date(new Date().setHours(0, 0, 0, 0)))
+                setCurrentDate(prev);
+            }}
+          >
+            <Image
+              source={require("./images/switchDate.png")}
+              style={[styles.switchIcon, { transform: [{ rotate: "180deg" }] }]}
+            />
+          </TouchableOpacity>
+
+          <Text style={styles.dateText}>{formatDate(currentDate)}</Text>
+
+          <TouchableOpacity
+            onPress={() => {
+              const next = new Date(currentDate);
+              next.setDate(next.getDate() + 1);
+              setCurrentDate(next);
+            }}
+          >
+            <Image
+              source={require("./images/switchDate.png")}
+              style={styles.switchIcon}
+            />
+          </TouchableOpacity>
+        </View>
+
         <FlatList
           data={filteredComputers}
           renderItem={renderComputer}
-          keyExtractor={item => item._id.toString()}  // ИСПРАВЛЕНО: Убрал random, используем _id
-          ListEmptyComponent={<Text>No computers available</Text>}
+          keyExtractor={(item) => item.id.toString()}
+          ListEmptyComponent={<Text>Немає доступних комп'ютерів</Text>}
         />
-        <Button
-          mode="contained"
-          onPress={() => router.push(`/bookings/${currentUser?.uid || ''}`)}
-          style={styles.bottomButton}
-          disabled={!currentUser?.uid}
-        >
-          All bookings
-        </Button>
-        {currentUser?.role === 'admin' && (
-          <Button
-            mode="contained"
-            onPress={() => router.push('/admin')}
-            style={styles.bottomButton}
-          >
-            Admin page
-          </Button>
-        )}
-        <Portal>
-          <Modal
-            visible={bookModalVisible}
-            onDismiss={() => setBookModalVisible(false)}
-            contentContainerStyle={styles.modal}
-          >
-            <Text>Book {selectedComputer?.name || 'PC'}</Text>
-            <MaskedTextInput
-              mask="99-99-9999"
-              onChangeText={(text) => setDate(text)}
-              value={date}
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="DD-MM-YYYY"
-            />
-            <MaskedTextInput
-              mask="99:99"
-              onChangeText={(text) => setStartTime(text)}
-              value={startTime}
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="HH:MM"
-            />
-            <MaskedTextInput
-              mask="99:99"
-              onChangeText={(text) => setEndTime(text)}
-              value={endTime}
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="HH:MM"
-            />
-            <Button
-              mode="contained"
-              onPress={handleBook}
-              loading={bookingMutation.isPending}  // ИСПРАВЛЕНО: isLoading -> isPending для tanstack
-            >
-              Book
-            </Button>
-          </Modal>
-        </Portal>
       </View>
     </PaperProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10 },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#F1F3F6",
   },
-  accordion: { flex: 1, marginLeft: 10 },
-  card: { marginBottom: 10 },
-  status: { width: 20, height: 20, borderRadius: 10, alignSelf: 'flex-end' },
-  buttons: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
-  bottomButton: { marginTop: 10 },
-  modal: { backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 10 },
-  input: { marginBottom: 10 },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "2%",
+  },
+  locationBox: {
+    flex: 2,
+    borderWidth: 1,
+    borderColor: "#aaa",
+    paddingHorizontal: 90,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "white",
+  },
+  locationBoxText: { color: "black", fontSize: 16, fontWeight: "500" },
+  menuContent: { backgroundColor: "white", borderRadius: 8 },
+  menuItemText: { color: "black", fontSize: 16 },
+  menuDivider: {
+    height: 0.5,
+    backgroundColor: "#bbb",
+    marginHorizontal: 12,
+    width: "90%",
+    alignSelf: "center",
+  },
+  dateRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: "5%",
+  },
+  dateText: { fontSize: 18, fontWeight: "bold", flex: 1, textAlign: "center" },
+  switchIcon: { width: 28, height: 28, resizeMode: "contain" },
+  card: {
+    marginBottom: 25,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    marginTop: "3%",
+    alignItems: "center",
+    marginHorizontal: "5%",
+  },
+  pcName: { fontSize: 18, fontWeight: "600", color: "#130153" },
+  location: { fontSize: 16, fontWeight: "600", color: "blue" },
+  row: {
+    flexDirection: "row",
+    marginBottom: 10,
+    justifyContent: "space-between",
+    marginHorizontal: "5%",
+  },
+  statusText: { fontSize: 14 },
+  scale: {
+    flexDirection: "row",
+    marginTop: 5,
+    marginBottom: "3%",
+    height: 18,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    marginHorizontal: "3%",
+  },
+  scaleBlock: { flex: 1 },
+  tiles: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginVertical: "2%",
+    marginHorizontal: "5%",
+    gap: "5%",
+    justifyContent: "center",
+  },
+  tile: {
+    width: "30%",
+    aspectRatio: 1,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#130153",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

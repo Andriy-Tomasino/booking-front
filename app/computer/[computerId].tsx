@@ -45,7 +45,7 @@ export default function ComputerBookings() {
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => String(item._id)}
+      keyExtractor={(item) => String(item.id)}
       contentContainerStyle={styles.list}
       renderItem={({ item }) => (
         <Card style={styles.card}>
