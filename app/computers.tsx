@@ -80,6 +80,17 @@ export default function Computers() {
 
   const hours = Array.from({ length: 9 }, (_, i) => 9 + i);
 
+  const getTodaysBookings = (computer: any, currentDate: Date) => {
+    return (computer.bookings || []).filter((b: any) => {
+      const start = new Date(b.startTime);
+      return (
+        start.getDate() === currentDate.getDate() &&
+        start.getMonth() === currentDate.getMonth() &&
+        start.getFullYear() === currentDate.getFullYear()
+      );
+    });
+  };
+
   const handleBooking = async (
     item: any,
     h: number,
@@ -164,10 +175,7 @@ export default function Computers() {
 
   const renderComputer = ({ item }: any) => {
     const isExpanded = expanded === item.id;
-    const todaysBookings = (item.bookings || []).filter((b: any) => {
-      const start = new Date(b.startTime);
-      return start.toDateString() === currentDate.toDateString();
-    });
+    const todaysBookings = getTodaysBookings(item, currentDate);
 
     const busyCount = todaysBookings.length;
     const freeCount = hours.length - busyCount;
@@ -189,7 +197,7 @@ export default function Computers() {
           {!isExpanded ? (
             <View style={styles.scale}>
               {hours.map((h) => {
-                const booking = item.bookings?.find(
+                const booking = todaysBookings.find(
                   (b: any) => new Date(b.startTime).getHours() === h
                 );
                 const isMine = booking?.userId === currentUser?.uid;
@@ -211,7 +219,7 @@ export default function Computers() {
           ) : (
             <View style={styles.tiles}>
               {hours.map((h) => {
-                const booking = item.bookings?.find(
+                const booking = todaysBookings.find(
                   (b: any) => new Date(b.startTime).getHours() === h
                 );
                 const isMine = booking?.userId === currentUser?.uid;
