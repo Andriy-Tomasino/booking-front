@@ -1,1 +1,1 @@
-export const API_URL = 'http://localhost:3000'; // Замените на ваш URL бэкенда
+export const API_URL = 'cozy-endurance-production.up.railway.app'; // Замените на ваш URL бэкенда
