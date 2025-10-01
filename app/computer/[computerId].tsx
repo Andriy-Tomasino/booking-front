@@ -5,7 +5,7 @@ import { View, FlatList, ActivityIndicator, StyleSheet } from "react-native";
 import { Card, Text } from "react-native-paper";
 
 async function fetchBookingsByComputerId(computerId: string) {
-  const res = await fetch(`cozy-endurance-production.up.railway.app/bookings/computer/${computerId}`);
+  const res = await fetch(`https://cozy-endurance-production.up.railway.app/bookings/computer/${computerId}`);
   if (!res.ok) throw new Error("Ошибка при загрузке бронирований");
   return res.json();
 }

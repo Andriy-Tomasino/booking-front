@@ -107,7 +107,7 @@ export default function BookingForm({ computerId, visible, onClose, onBookingSuc
       }
       const idToken = await user.getIdToken(true);
       console.log('[BookingForm] idToken:', idToken);
-      const response = await fetch('cozy-endurance-production.up.railway.app/bookings', {
+      const response = await fetch('https://cozy-endurance-production.up.railway.app/bookings', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${idToken}`,

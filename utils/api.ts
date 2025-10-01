@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const api = axios.create({
-  baseURL: 'cozy-endurance-production.up.railway.app',
+  baseURL: 'https://cozy-endurance-production.up.railway.app',
   headers: {
     'Content-Type': 'application/json',
   },
